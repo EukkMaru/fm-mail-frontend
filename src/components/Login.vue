@@ -107,19 +107,24 @@ async function loadGmailMessages() {
         }).then(res => res.json())
       );
 
-      const messages = await Promise.all(messagePromises);
+      try {
+        const messages = await Promise.all(messagePromises);
 
-      messages.forEach(messageData => {
-        if (messageData.payload.headers) {
-          const from = messageData.payload.headers.find(h => h.name === 'From')?.value || 'N/A'
-          const subject = messageData.payload.headers.find(h => h.name === 'Subject')?.value || 'N/A'
-          const date = messageData.payload.headers.find(h => h.name === 'Date')?.value || 'N/A'
-          
-          const messageElement = document.createElement('div')
-          messageElement.innerHTML = `<div style="border: 1px solid #eee; padding: 0.5rem; margin-bottom: 0.5rem;"><strong>From:</strong> ${from}<br/><strong>Subject:</strong> ${subject}<br/><strong>Date:</strong> ${date}</div>`
-          inboxContainer.appendChild(messageElement)
-        }
-      });
+        messages.forEach(messageData => {
+          if (messageData.payload && messageData.payload.headers) {
+            const from = messageData.payload.headers.find(h => h.name === 'From')?.value || 'N/A'
+            const subject = messageData.payload.headers.find(h => h.name === 'Subject')?.value || 'N/A'
+            const date = messageData.payload.headers.find(h => h.name === 'Date')?.value || 'N/A'
+            
+            const messageElement = document.createElement('div')
+            messageElement.innerHTML = `<div style="border: 1px solid #eee; padding: 0.5rem; margin-bottom: 0.5rem;"><strong>From:</strong> ${from}<br/><strong>Subject:</strong> ${subject}<br/><strong>Date:</strong> ${date}</div>`
+            inboxContainer.appendChild(messageElement)
+          }
+        });
+      } catch (error) {
+        console.error('Error fetching individual messages:', error);
+        inboxContainer.innerHTML += '<p style="color:red;">Error fetching some emails.</p>';
+      }
 
     } else {
       inboxContainer.innerHTML += '<p>No messages found in your inbox.</p>'
