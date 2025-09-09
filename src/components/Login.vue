@@ -32,7 +32,6 @@ onMounted(() => {
     isLoggedIn.value = true;
     getUserEmail();
     
-    // Clean up the URL
     window.history.replaceState({}, document.title, window.location.pathname);
   }
 });
@@ -100,7 +99,7 @@ async function loadGmailMessages() {
     
     if (data.messages && data.messages.length > 0) {
       const messagePromises = data.messages.map(message =>
-        fetch(`https://www.googleapis.com/gmail/v1/users/me/messages/${message.id}?format=metadata`, {
+        fetch(`https://www.googleapis.com/gmail/v1/users/me/messages/${message.id}?format=metadata&metadataHeaders=From,Subject,Date`, {
           headers: {
             'Authorization': `Bearer ${accessToken.value}`
           }
@@ -116,14 +115,16 @@ async function loadGmailMessages() {
             const subject = messageData.payload.headers.find(h => h.name === 'Subject')?.value || 'N/A'
             const date = messageData.payload.headers.find(h => h.name === 'Date')?.value || 'N/A'
             
-            const messageElement = document.createElement('div')
-            messageElement.innerHTML = `<div style=\"border: 1px solid #eee; padding: 0.5rem; margin-bottom: 0.5rem;\"><strong>From:</strong> ${from}<br/><strong>Subject:</strong> ${subject}<br/><strong>Date:</strong> ${date}</div>`
-            inboxContainer.appendChild(messageElement)
+            const messageElement = document.createElement('div');
+            messageElement.style.cursor = 'pointer';
+            messageElement.innerHTML = `<div style="border: 1px solid #eee; padding: 0.5rem; margin-bottom: 0.5rem;"><strong>From:</strong> ${from}<br/><strong>Subject:</strong> ${subject}<br/><strong>Date:</strong> ${date}</div>`;
+            messageElement.addEventListener('click', () => viewEmail(messageData.id, messageElement));
+            inboxContainer.appendChild(messageElement);
           }
         });
       } catch (error) {
         console.error('Error fetching individual messages:', error);
-        inboxContainer.innerHTML += '<p style=\"color:red;\">Error fetching some emails.</p>';
+        inboxContainer.innerHTML += '<p style="color:red;">Error fetching some emails.</p>';
       }
 
     } else {
@@ -132,6 +133,50 @@ async function loadGmailMessages() {
   } catch (error) {
     inboxContainer.innerHTML = `<p style="color:red;">Failed to load inbox: ${error.message}</p>`
     console.error(error)
+  }
+}
+
+async function viewEmail(messageId, messageElement) {
+  try {
+    const response = await fetch(`https://www.googleapis.com/gmail/v1/users/me/messages/${messageId}?format=full`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken.value}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`API call failed: ${response.statusText}`);
+    }
+
+    const messageData = await response.json();
+    let body = '';
+
+    if (messageData.payload.parts) {
+      const part = messageData.payload.parts.find(p => p.mimeType === 'text/html') || messageData.payload.parts.find(p => p.mimeType === 'text/plain');
+      if (part && part.body && part.body.data) {
+        body = atob(part.body.data.replace(/-/g, '+').replace(/_/g, '/'));
+      }
+    } else if (messageData.payload.body && messageData.payload.body.data) {
+      body = atob(messageData.payload.body.data.replace(/-/g, '+').replace(/_/g, '/'));
+    }
+
+    const emailContent = document.createElement('div');
+    emailContent.style.padding = '1rem';
+    emailContent.style.border = '1px solid #ccc';
+    emailContent.style.marginTop = '0.5rem';
+    emailContent.innerHTML = body;
+
+    // Check if content is already displayed
+    const existingContent = messageElement.querySelector('.email-content');
+    if (existingContent) {
+      existingContent.remove();
+    } else {
+      emailContent.classList.add('email-content');
+      messageElement.appendChild(emailContent);
+    }
+
+  } catch (error) {
+    console.error('Failed to load email content:', error);
   }
 }
 </script>
