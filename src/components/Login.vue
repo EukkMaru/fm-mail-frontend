@@ -1,7 +1,9 @@
 <template>
   <div style="padding: 2rem;">
     <h1>Fuwamofu Mail</h1>
-    <div v-if="!isLoggedIn" id="g_id_signin" style="margin-top: 1rem;"></div>
+    <div v-if="!isLoggedIn">
+      <button @click="login">Sign in with Google</button>
+    </div>
     <div v-else>
       <h2>Welcome, {{ userEmail }}</h2>
       <button @click="loadGmailMessages">Load My Inbox</button>
@@ -17,37 +19,59 @@ const isLoggedIn = ref(false)
 const userEmail = ref('')
 const accessToken = ref('')
 
+const CLIENT_ID = '343822659955-sjqmuqskg0s15buvhfm8ndj0u0p6hcba.apps.googleusercontent.com';
+const REDIRECT_URI = window.location.origin;
+
 onMounted(() => {
-  const waitForGoogle = setInterval(() => {
-    if (window.google && window.google.accounts && window.google.accounts.id) {
-      clearInterval(waitForGoogle)
+  const fragment = window.location.hash.substring(1);
+  const params = new URLSearchParams(fragment);
+  const token = params.get('access_token');
 
-      window.google.accounts.id.initialize({
-        client_id: '343822659955-sjqmuqskg0s15buvhfm8ndj0u0p6hcba.apps.googleusercontent.com',
-        callback: handleCredentialResponse,
-        auto_select: false,
-        context: 'signin'
-      })
+  if (token) {
+    accessToken.value = token;
+    isLoggedIn.value = true;
+    getUserEmail();
+    
+    // Clean up the URL
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+});
 
-      window.google.accounts.id.renderButton(
-        document.getElementById('g_id_signin'),
-        { theme: 'outline', size: 'large' }
-      )
+function login() {
+  const oauth2Endpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
+
+  const params = {
+    client_id: CLIENT_ID,
+    redirect_uri: REDIRECT_URI,
+    response_type: 'token',
+    scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email',
+    include_granted_scopes: 'true',
+    state: 'pass-through-value'
+  };
+
+  const url = `${oauth2Endpoint}?${new URLSearchParams(params)}`;
+  window.location.href = url;
+}
+
+async function getUserEmail() {
+  if (!accessToken.value) return;
+
+  try {
+    const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: {
+        'Authorization': `Bearer ${accessToken.value}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`API call failed: ${response.statusText}`);
     }
-  }, 100)
-})
 
-function handleCredentialResponse(response) {
-  // Use the ID token to get the access token and user info
-  window.google.accounts.oauth2.initTokenClient({
-    client_id: '343822659955-sjqmuqskg0s15buvhfm8ndj0u0p6hcba.apps.googleusercontent.com',
-    scope: 'https://www.googleapis.com/auth/gmail.readonly',
-    callback: (tokenResponse) => {
-      accessToken.value = tokenResponse.access_token
-      isLoggedIn.value = true
-      userEmail.value = JSON.parse(atob(response.credential.split('.')[1])).email
-    },
-  }).requestAccessToken()
+    const data = await response.json();
+    userEmail.value = data.email;
+  } catch (error) {
+    console.error('Failed to get user email:', error);
+  }
 }
 
 async function loadGmailMessages() {
