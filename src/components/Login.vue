@@ -15,7 +15,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 
-const DEBUG = true;
+const DEBUG = false;
 
 const isLoggedIn = ref(false)
 const userEmail = ref('')
@@ -171,10 +171,14 @@ async function viewEmail(messageId, messageElement) {
     if (messageData.payload.parts) {
       const part = messageData.payload.parts.find(p => p.mimeType === 'text/html') || messageData.payload.parts.find(p => p.mimeType === 'text/plain');
       if (part && part.body && part.body.data) {
-        body = atob(part.body.data.replace(/-/g, '+').replace(/_/g, '/'));
+        const decodedData = atob(part.body.data.replace(/-/g, '+').replace(/_/g, '/'));
+        const uint8Array = new Uint8Array(decodedData.length).map((_, i) => decodedData.charCodeAt(i));
+        body = new TextDecoder('utf-8').decode(uint8Array);
       }
     } else if (messageData.payload.body && messageData.payload.body.data) {
-      body = atob(messageData.payload.body.data.replace(/-/g, '+').replace(/_/g, '/'));
+      const decodedData = atob(messageData.payload.body.data.replace(/-/g, '+').replace(/_/g, '/'));
+      const uint8Array = new Uint8Array(decodedData.length).map((_, i) => decodedData.charCodeAt(i));
+      body = new TextDecoder('utf-8').decode(uint8Array);
     }
 
     const emailContent = document.createElement('div');
