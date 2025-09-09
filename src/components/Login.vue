@@ -167,18 +167,27 @@ async function viewEmail(messageId, messageElement) {
     const messageData = await response.json();
     if (DEBUG) console.log('Full message data:', messageData);
     let body = '';
+    let charset = 'utf-8';
+
+    const contentTypeHeader = messageData.payload.headers.find(h => h.name.toLowerCase() === 'content-type');
+    if (contentTypeHeader) {
+      const match = contentTypeHeader.value.match(/charset=([^\s"]+)/i);
+      if (match && match[1]) {
+        charset = match[1].toLowerCase();
+      }
+    }
 
     if (messageData.payload.parts) {
       const part = messageData.payload.parts.find(p => p.mimeType === 'text/html') || messageData.payload.parts.find(p => p.mimeType === 'text/plain');
       if (part && part.body && part.body.data) {
         const decodedData = atob(part.body.data.replace(/-/g, '+').replace(/_/g, '/'));
         const uint8Array = new Uint8Array(decodedData.length).map((_, i) => decodedData.charCodeAt(i));
-        body = new TextDecoder('utf-8').decode(uint8Array);
+        body = new TextDecoder(charset).decode(uint8Array);
       }
     } else if (messageData.payload.body && messageData.payload.body.data) {
       const decodedData = atob(messageData.payload.body.data.replace(/-/g, '+').replace(/_/g, '/'));
       const uint8Array = new Uint8Array(decodedData.length).map((_, i) => decodedData.charCodeAt(i));
-      body = new TextDecoder('utf-8').decode(uint8Array);
+      body = new TextDecoder(charset).decode(uint8Array);
     }
 
     const emailContent = document.createElement('div');
@@ -186,6 +195,7 @@ async function viewEmail(messageId, messageElement) {
     emailContent.style.border = '1px solid #ccc';
     emailContent.style.marginTop = '0.5rem';
     emailContent.innerHTML = body;
+    emailContent.addEventListener('click', (event) => event.stopPropagation());
 
     const existingContent = messageElement.querySelector('.email-content');
     if (existingContent) {
