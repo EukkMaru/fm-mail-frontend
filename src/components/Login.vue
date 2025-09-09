@@ -20,7 +20,7 @@ const userEmail = ref('')
 const accessToken = ref('')
 
 const CLIENT_ID = '343822659955-sjqmuqskg0s15buvhfm8ndj0u0p6hcba.apps.googleusercontent.com';
-const REDIRECT_URI = window.location.origin;
+const REDIRECT_URI = 'https://mail.fuwamofu.net';
 
 onMounted(() => {
   const fragment = window.location.hash.substring(1);
