@@ -46,6 +46,7 @@ function login() {
     response_type: 'token',
     scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email',
     include_granted_scopes: 'true',
+    prompt: 'select_account',
     state: 'pass-through-value'
   };
 
