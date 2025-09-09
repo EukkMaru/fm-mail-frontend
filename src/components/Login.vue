@@ -76,15 +76,19 @@ async function getUserEmail() {
 }
 
 async function loadGmailMessages() {
+  console.log('Starting loadGmailMessages');
   const inboxContainer = document.getElementById('inbox-container')
   if (!accessToken.value) {
+    console.error('Access token not available.');
     inboxContainer.innerHTML = '<p style="color:red;">Error: Access token not available.</p>'
     return
   }
+  console.log('Access Token:', accessToken.value);
 
   inboxContainer.innerHTML = '<p>Loading messages...</p>'
   
   try {
+    console.log('Fetching message list...');
     const response = await fetch('https://www.googleapis.com/gmail/v1/users/me/messages?maxResults=10', {
       headers: {
         'Authorization': `Bearer ${accessToken.value}`
@@ -96,42 +100,51 @@ async function loadGmailMessages() {
     }
 
     const data = await response.json()
+    console.log('Message list response:', data);
     inboxContainer.innerHTML = '<h3>Latest Emails</h3>'
     
     if (data.messages && data.messages.length > 0) {
-      const messagePromises = data.messages.map(message =>
-        fetch(`https://www.googleapis.com/gmail/v1/users/me/messages/${message.id}?format=metadata&metadataHeaders=From,Subject,Date`, {
+      console.log('Message IDs found:', data.messages.map(m => m.id));
+      const messagePromises = data.messages.map(message => {
+        console.log('Fetching message ID:', message.id);
+        return fetch(`https://www.googleapis.com/gmail/v1/users/me/messages/${message.id}?format=metadata&metadataHeaders=From,Subject,Date`, {
           headers: {
             'Authorization': `Bearer ${accessToken.value}`
           }
         }).then(res => res.json())
-      );
+      });
 
       try {
+        console.log('Waiting for all message promises to resolve...');
         const messages = await Promise.all(messagePromises);
+        console.log('All messages fetched:', messages);
 
         messages.forEach(messageData => {
+          console.log('Processing message data:', messageData);
           if (messageData.payload && messageData.payload.headers) {
             const from = messageData.payload.headers.find(h => h.name === 'From')?.value || 'N/A'
             const subject = messageData.payload.headers.find(h => h.name === 'Subject')?.value || 'N/A'
             const date = messageData.payload.headers.find(h => h.name === 'Date')?.value || 'N/A'
             
             const messageElement = document.createElement('div')
-            messageElement.innerHTML = `<div style="border: 1px solid #eee; padding: 0.5rem; margin-bottom: 0.5rem;"><strong>From:</strong> ${from}<br/><strong>Subject:</strong> ${subject}<br/><strong>Date:</strong> ${date}</div>`
+            messageElement.innerHTML = `<div style=\"border: 1px solid #eee; padding: 0.5rem; margin-bottom: 0.5rem;\"><strong>From:</strong> ${from}<br/><strong>Subject:</strong> ${subject}<br/><strong>Date:</strong> ${date}</div>`
             inboxContainer.appendChild(messageElement)
+          } else {
+            console.warn('Message data has no payload or headers:', messageData);
           }
         });
       } catch (error) {
         console.error('Error fetching individual messages:', error);
-        inboxContainer.innerHTML += '<p style="color:red;">Error fetching some emails.</p>';
+        inboxContainer.innerHTML += '<p style=\"color:red;\">Error fetching some emails.</p>';
       }
 
     } else {
+      console.log('No messages found in inbox.');
       inboxContainer.innerHTML += '<p>No messages found in your inbox.</p>'
     }
   } catch (error) {
+    console.error('Failed to load inbox:', error);
     inboxContainer.innerHTML = `<p style="color:red;">Failed to load inbox: ${error.message}</p>`
-    console.error(error)
   }
 }
 </script>
