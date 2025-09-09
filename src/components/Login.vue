@@ -99,13 +99,17 @@ async function loadGmailMessages() {
     inboxContainer.innerHTML = '<h3>Latest Emails</h3>'
     
     if (data.messages && data.messages.length > 0) {
-      data.messages.forEach(async (message) => {
-        const messageResponse = await fetch(`https://www.googleapis.com/gmail/v1/users/me/messages/${message.id}?format=metadata&metadataHeaders=From,Subject,Date`, {
+      const messagePromises = data.messages.map(message =>
+        fetch(`https://www.googleapis.com/gmail/v1/users/me/messages/${message.id}?format=metadata&metadataHeaders=From,Subject,Date`, {
           headers: {
             'Authorization': `Bearer ${accessToken.value}`
           }
-        })
-        const messageData = await messageResponse.json()
+        }).then(res => res.json())
+      );
+
+      const messages = await Promise.all(messagePromises);
+
+      messages.forEach(messageData => {
         if (messageData.payload.headers) {
           const from = messageData.payload.headers.find(h => h.name === 'From')?.value || 'N/A'
           const subject = messageData.payload.headers.find(h => h.name === 'Subject')?.value || 'N/A'
@@ -115,7 +119,8 @@ async function loadGmailMessages() {
           messageElement.innerHTML = `<div style="border: 1px solid #eee; padding: 0.5rem; margin-bottom: 0.5rem;"><strong>From:</strong> ${from}<br/><strong>Subject:</strong> ${subject}<br/><strong>Date:</strong> ${date}</div>`
           inboxContainer.appendChild(messageElement)
         }
-      })
+      });
+
     } else {
       inboxContainer.innerHTML += '<p>No messages found in your inbox.</p>'
     }
