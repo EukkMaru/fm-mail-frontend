@@ -29,7 +29,10 @@ onMounted(() => {
         context: 'signin'
       })
 
-      window.google.accounts.id.prompt()
+      window.google.accounts.id.renderButton(
+        document.getElementById('g_id_signin'),
+        { theme: 'outline', size: 'large' }
+      )
     }
   }, 100)
 })
